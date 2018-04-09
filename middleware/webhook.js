@@ -9,12 +9,17 @@ const handler = createHandler([
   { path: '/webhook/static_assets', secret: 'talk-daemon' }
 ])
 
+const reMatch = /\s*@build\s+(\w+)\/(\w+)(?:\/(\w+))?\b/
+
 handler.on('merge_request', function (e) {
   const pea = new Pea()
   const objectAttributes = e.payload.object_attributes
+  const user = e.payload.user
 
   pea.use(next => {
     // 非merged， 跳过
+    console.log(`提交人：${user.name}`)
+    console.log(`分支：${objectAttributes.source_branch} => ${objectAttributes.target_branch}`)
     console.log(`事件：${objectAttributes.state}`)
     if (objectAttributes.state !== 'merged') return
 
@@ -26,12 +31,12 @@ handler.on('merge_request', function (e) {
     let matchs, projectPath
 
     // 没有注释，跳过
-    console.log(`注释: ${objectAttributes.description}`)
+    console.log(`描述: ${objectAttributes.description || '空'}`)
     if (!objectAttributes.description.trim()) return
 
     // 没有注释build信息，跳过
-    matchs = objectAttributes.description.match(/\s*@build\s+(\w+)\/(\w+)\b/)
-    if (!matchs) return
+    matchs = objectAttributes.description.match(reMatch)
+    if (!matchs || matchs[3]) return
 
     // build信息不正确，跳过
     projectPath = path.resolve(repositoryPath, matchs[1], matchs[2])
